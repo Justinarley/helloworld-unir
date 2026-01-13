@@ -25,7 +25,7 @@ pipeline {
         stage('Tests REST (Integración)') {
             steps {
                 script {
-                    sh "java -jar ${WIRE_JAR} --root-dir ${WORKSPACE}/test/rest/wiremock --port 9090 &"
+                    sh "java -jar ${WIRE_JAR} --root-dir ${WORKSPACE}/test/wiremock --port 9090 &"
                     
                     sh "PYTHONPATH=. ./venv_jenkins/bin/flask run --host=0.0.0.0 --port=5000 &"
                     
