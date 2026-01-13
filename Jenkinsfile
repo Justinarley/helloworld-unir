@@ -25,9 +25,7 @@ pipeline {
         stage('Tests REST (Integración)') {
             steps {
                 script {
-                    // CAMBIO CLAVE: Se añade --root-dir para apuntar a la carpeta del proyecto
-                    // Esto evita tener carpetas sueltas en la raíz y usa tu estructura de test/rest/wiremock
-                    sh "java -jar ${WIRE_JAR} --root-dir ./test/rest/wiremock --port 9090 &"
+                    sh "java -jar ${WIRE_JAR} --root-dir ${WORKSPACE}/test/rest/wiremock --port 9090 &"
                     
                     sh "PYTHONPATH=. ./venv_jenkins/bin/flask run --host=0.0.0.0 --port=5000 &"
                     
