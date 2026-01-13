@@ -10,7 +10,7 @@ pipeline {
     stages {
         stage('Checkout y Preparación') {
             steps {
-                git branch: 'master', url: 'https://github.com/Justinarley/helloworld-unir.git'
+                git branch: 'develop', url: 'https://github.com/Justinarley/helloworld-unir.git'
                 sh 'python3 -m venv venv_jenkins'
                 sh './venv_jenkins/bin/pip install -r requirements.txt'
             }
