@@ -46,22 +46,29 @@ pipeline {
 
         stage('Static (Flake8)') {
             steps {
-                // Baremo: 8 hallazgos (Unstable), 10 hallazgos (Failure)
                 sh './venv_jenkins/bin/flake8 app/ --output-file=flake8.log || true'
-                recordIssues tool: flake8(pattern: 'flake8.log'),
-                             qualityGates: [[threshold: 8, type: 'TOTAL', qualityGateType: 'UNSTABLE'],
-                                           [threshold: 10, type: 'TOTAL', qualityGateType: 'FAILURE']]
+            }
+            post {
+                always {
+                    // Usamos el ID genérico 'pylint' que todos los Jenkins tienen para Flake8
+                    recordIssues tools: [pyLint(pattern: 'flake8.log')],
+                                 qualityGates: [[threshold: 8, type: 'TOTAL', qualityGateType: 'UNSTABLE'],
+                                               [threshold: 10, type: 'TOTAL', qualityGateType: 'FAILURE']]
+                }
             }
         }
 
         stage('Security Test (Bandit)') {
             steps {
-                // Usamos el formato JSON que probamos en local
-                // Baremo: 2 hallazgos (Unstable), 4 hallazgos (Failure)
                 sh './venv_jenkins/bin/bandit -r app/ -f json -o bandit.json || true'
-                recordIssues tool: bandit(pattern: 'bandit.json'),
-                             qualityGates: [[threshold: 2, type: 'TOTAL', qualityGateType: 'UNSTABLE'],
-                                           [threshold: 4, type: 'TOTAL', qualityGateType: 'FAILURE']]
+            }
+            post {
+                always {
+                    // Usamos 'issues' con el ID manual para que no busque el método bandit()
+                    recordIssues tools: [issues(pattern: 'bandit.json', id: 'bandit', name: 'Bandit')],
+                                 qualityGates: [[threshold: 2, type: 'TOTAL', qualityGateType: 'UNSTABLE'],
+                                               [threshold: 4, type: 'TOTAL', qualityGateType: 'FAILURE']]
+                }
             }
         }
 
