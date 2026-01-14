@@ -37,30 +37,30 @@ pipeline {
             }
         }
 
-        stage('Análisis Estático (Flake8)') {
+        stage('Static Analysis (Flake8)') {
             steps {
-                // Umbrales UNIR: 8 unstable / 10 failed
                 sh './venv_jenkins/bin/flake8 app/ --output-file=flake8.log || true'
             }
             post {
                 always {
+                    // Nueva sintaxis: Umbrales UNIR (8 inestable, 10 fallo)
                     recordIssues(tools: [flake8(pattern: 'flake8.log')], 
-                                 unstableTotalAll: 8, 
-                                 failedTotalAll: 10)
+                                 qualityGates: [[threshold: 8, type: 'TOTAL', qualityGateType: 'UNSTABLE'],
+                                               [threshold: 10, type: 'TOTAL', qualityGateType: 'FAILURE']])
                 }
             }
         }
 
-        stage('Seguridad (Bandit)') {
+        stage('Security (Bandit)') {
             steps {
-                // Umbrales UNIR: 2 unstable / 4 failed
                 sh './venv_jenkins/bin/bandit -r app/ -f txt -o bandit.txt || true'
             }
             post {
                 always {
+                    // Nueva sintaxis: Umbrales UNIR (2 inestable, 4 fallo)
                     recordIssues(tools: [bandit(pattern: 'bandit.txt')], 
-                                 unstableTotalAll: 2, 
-                                 failedTotalAll: 4)
+                                 qualityGates: [[threshold: 2, type: 'TOTAL', qualityGateType: 'UNSTABLE'],
+                                               [threshold: 4, type: 'TOTAL', qualityGateType: 'FAILURE']])
                 }
             }
         }
