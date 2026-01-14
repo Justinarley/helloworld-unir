@@ -10,70 +10,64 @@ pipeline {
     stages {
         stage('Get Code') {
             steps {
-                // Obtenemos el código de la rama develop
+                // 1. Obtenemos el código
                 git branch: 'develop', url: 'https://github.com/Justinarley/helloworld-unir.git'
+                // 2. Preparamos el entorno e instalamos TODO lo del requirements.txt
                 sh 'python3 -m venv venv_jenkins'
-                sh './venv_jenkins/bin/pip install -r requirements.txt flake8 bandit coverage'
+                sh './venv_jenkins/bin/pip install -r requirements.txt'
             }
         }
 
-        stage('Unit & Coverage') {
+        stage('Unit') {
             steps {
-                // Ejecutamos las pruebas unitarias y generamos los datos de cobertura
-                // La guía prohíbe ejecutar las pruebas unitarias dos veces, así que lo hacemos aquí
+                // Ejecutamos pruebas unitarias (se ejecutan una sola vez como pide la guía)
                 sh './venv_jenkins/bin/coverage run -m pytest test/unit --junitxml=results_unit.xml'
                 sh './venv_jenkins/bin/coverage xml -o coverage.xml'
             }
             post {
                 always {
                     junit 'results_unit.xml'
-                    // Configuramos los baremos del Reto 1:
-                    // Líneas: 85-95 Unstable. Ramas: 80-90 Unstable.
-                    recordCoverage(tools: [[parser: 'COBERTURA', pattern: 'coverage.xml']],
-                        qualityGates: [
-                            [threshold: 95.0, metric: 'LINE', baseline: 'PROJECT', unstable: true],
-                            [threshold: 85.0, metric: 'LINE', baseline: 'PROJECT', critical: true],
-                            [threshold: 90.0, metric: 'BRANCH', baseline: 'PROJECT', unstable: true],
-                            [threshold: 80.0, metric: 'BRANCH', baseline: 'PROJECT', critical: true]
-                        ])
                 }
+            }
+        }
+
+        stage('Coverage') {
+            steps {
+                // Aplicamos los baremos: Líneas (85-95) y Ramas (80-90)
+                recordCoverage(tools: [[parser: 'COBERTURA', pattern: 'coverage.xml']],
+                    qualityGates: [
+                        [threshold: 95.0, metric: 'LINE', unstable: true],
+                        [threshold: 85.0, metric: 'LINE', critical: true],
+                        [threshold: 90.0, metric: 'BRANCH', unstable: true],
+                        [threshold: 80.0, metric: 'BRANCH', critical: true]
+                    ])
             }
         }
 
         stage('Static (Flake8)') {
             steps {
+                // Baremo: 8 hallazgos (Unstable), 10 hallazgos (Failure)
                 sh './venv_jenkins/bin/flake8 app/ --output-file=flake8.log || true'
-            }
-            post {
-                always {
-                    // Baremo: 8 hallazgos Unstable, 10 hallazgos Failure
-                    recordIssues tool: flake8(pattern: 'flake8.log'), 
-                                 qualityGates: [[threshold: 8, type: 'TOTAL', qualityGateType: 'UNSTABLE'],
-                                               [threshold: 10, type: 'TOTAL', qualityGateType: 'FAILURE']]
-                }
+                recordIssues tool: flake8(pattern: 'flake8.log'),
+                             qualityGates: [[threshold: 8, type: 'TOTAL', qualityGateType: 'UNSTABLE'],
+                                           [threshold: 10, type: 'TOTAL', qualityGateType: 'FAILURE']]
             }
         }
 
         stage('Security Test (Bandit)') {
             steps {
-                // IMPORTANTE: Si 'bandit' sigue fallando como método DSL, usa:
-                // recordIssues tool: issues(pattern: 'bandit.log', id: 'bandit', name: 'Bandit')
-                sh './venv_jenkins/bin/bandit -r app/ -f txt -o bandit.log || true'
-            }
-            post {
-                always {
-                    // Baremo: 2 hallazgos Unstable, 4 hallazgos Failure
-                    recordIssues tool: issues(pattern: 'bandit.log', id: 'bandit', name: 'Bandit'), 
-                                 qualityGates: [[threshold: 2, type: 'TOTAL', qualityGateType: 'UNSTABLE'],
-                                               [threshold: 4, type: 'TOTAL', qualityGateType: 'FAILURE']]
-                }
+                // Usamos el formato JSON que probamos en local
+                // Baremo: 2 hallazgos (Unstable), 4 hallazgos (Failure)
+                sh './venv_jenkins/bin/bandit -r app/ -f json -o bandit.json || true'
+                recordIssues tool: bandit(pattern: 'bandit.json'),
+                             qualityGates: [[threshold: 2, type: 'TOTAL', qualityGateType: 'UNSTABLE'],
+                                           [threshold: 4, type: 'TOTAL', qualityGateType: 'FAILURE']]
             }
         }
 
         stage('Rest') {
             steps {
                 script {
-                    // Levantamos servicios para pruebas de integración
                     sh "java -jar ${WIRE_JAR} --root-dir ${WORKSPACE}/test/wiremock --port 9090 &"
                     sh "PYTHONPATH=. ./venv_jenkins/bin/flask run --host=0.0.0.0 --port=5000 &"
                     sh "sleep 10"
@@ -90,7 +84,6 @@ pipeline {
         stage('Performance') {
             steps {
                 script {
-                    // Solo Flask para JMeter (Wiremock no es necesario según la guía)
                     sh "PYTHONPATH=. ./venv_jenkins/bin/flask run --host=0.0.0.0 --port=5000 &"
                     sh "sleep 5"
                     try {
