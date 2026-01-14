@@ -45,12 +45,13 @@ pipeline {
 
         stage('Security (Bandit)') {
             steps {
-                sh './venv_jenkins/bin/bandit -r app/ -f txt -o bandit.txt || true'
+                // Generamos el log en formato especial para que Jenkins no se confunda
+                sh './venv_jenkins/bin/bandit -r app/ -f txt -o bandit.log || true'
             }
             post {
                 always {
-                    // Aquí está el cambio: usamos 'issues' en lugar de 'bandit'
-                    recordIssues tool: issues(pattern: 'bandit.txt', id: 'bandit', name: 'Bandit'), 
+                    // Usamos el parser específico de Bandit que trae el plugin Warnings Next Gen
+                    recordIssues tool: bandit(pattern: 'bandit.log'), 
                                  qualityGates: [[threshold: 2, type: 'TOTAL', qualityGateType: 'UNSTABLE'],
                                                [threshold: 4, type: 'TOTAL', qualityGateType: 'FAILURE']]
                 }
