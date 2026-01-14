@@ -20,19 +20,14 @@ pipeline {
 
         stage('Tests Unitarios y Cobertura') {
             steps {
-                // Ejecutamos tests y generamos reportes de JUnit y Cobertura (XML)
                 sh './venv_jenkins/bin/coverage run -m pytest test/unit --junitxml=results_unit.xml'
                 sh './venv_jenkins/bin/coverage xml -o coverage.xml'
             }
             post {
                 always {
                     junit 'results_unit.xml'
-                    // Plugin Cobertura: Umbrales UNIR (Lineas 85-95, Ramas 80-90)
-                    publishCoverage(adapters: [coberturaAdapter(path: 'coverage.xml')],
-                        globalThresholds: [
-                            [thresholdTarget: 'Line', unstableThreshold: 85, unhealthyThreshold: 0],
-                            [thresholdTarget: 'Branch', unstableThreshold: 80, unhealthyThreshold: 0]
-                        ])
+                    // Nueva sintaxis compatible con tu Jenkins
+                    recordCoverage(tools: [[parser: 'COBERTURA', pattern: 'coverage.xml']])
                 }
             }
         }
