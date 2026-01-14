@@ -49,9 +49,8 @@ pipeline {
             }
             post {
                 always {
-                    // Cambiamos a 'pyLint' con el patrón de bandit o usamos el ID genérico
-                    // Esta sintaxis suele evitar el error "No such DSL method bandit"
-                    recordIssues tool: bandit(pattern: 'bandit.txt'), 
+                    // Aquí está el cambio: usamos 'issues' en lugar de 'bandit'
+                    recordIssues tool: issues(pattern: 'bandit.txt', id: 'bandit', name: 'Bandit'), 
                                  qualityGates: [[threshold: 2, type: 'TOTAL', qualityGateType: 'UNSTABLE'],
                                                [threshold: 4, type: 'TOTAL', qualityGateType: 'FAILURE']]
                 }
