@@ -5,14 +5,13 @@ pipeline {
         PYTHONPATH = "${WORKSPACE}"
         WIRE_JAR = "/var/lib/jenkins/tools/wiremock-standalone-3.13.2.jar"
         FLASK_APP = "app.api:api_application"
-        // DEFINIMOS LA RUTA AQUÍ: Si cambia, solo cambias esta línea
+        // Esta es la ruta que confirmamos con 'whereis'
         JMETER_BIN = "/home/justin/apache-jmeter-5.6.3/bin/jmeter"
     }
 
     stages {
         stage('Setup') {
             steps {
-                // Limpieza inicial para asegurar que los puertos están libres
                 sh "fuser -k 5000/tcp || true"
                 sh "fuser -k 9090/tcp || true"
                 
@@ -40,10 +39,9 @@ pipeline {
         }
 
         stage('Static Analysis') {
-            parallel { // Ejecutamos ambos análisis a la vez para ahorrar tiempo
+            parallel {
                 stage('Flake8') {
                     steps {
-                        // El || true es OBLIGATORIO aquí para que el plugin pueda leer los errores después
                         sh './venv_jenkins/bin/flake8 app/ --output-file=flake8.log || true'
                         recordIssues tools: [pyLint(pattern: 'flake8.log')],
                                      qualityGates: [[threshold: 8, type: 'TOTAL', qualityGateType: 'UNSTABLE']]
@@ -51,7 +49,6 @@ pipeline {
                 }
                 stage('Bandit') {
                     steps {
-                        // El || true es OBLIGATORIO aquí también
                         sh './venv_jenkins/bin/bandit -r app/ -f json -o bandit.json || true'
                         recordIssues tools: [issues(pattern: 'bandit.json', id: 'bandit', name: 'Bandit')],
                                      qualityGates: [[threshold: 2, type: 'TOTAL', qualityGateType: 'UNSTABLE']]
@@ -70,12 +67,18 @@ pipeline {
                     try {
                         sh "PYTHONPATH=. ./venv_jenkins/bin/pytest test/rest"
                         
-                        // USAMOS LA VARIABLE DEFINIDA ARRIBA. Sin || true porque si JMeter falla, queremos saberlo.
+                        // --- SOLUCIÓN AL ERROR 126 ---
+                        // Damos permiso de ejecución al binario de JMeter
+                        sh "chmod +x ${JMETER_BIN}"
+                        
+                        // Ejecución fija de JMeter
                         sh "${JMETER_BIN} -n -t test/jmeter/flask.jmx -l resultados_performance.jtl"
                         
                     } finally {
                         sh "fuser -k 5000/tcp || true"
                         sh "fuser -k 9090/tcp || true"
+                        
+                        // Esto generará la tabla con la Línea 90
                         perfReport sourceDataFiles: 'resultados_performance.jtl'
                     }
                 }
