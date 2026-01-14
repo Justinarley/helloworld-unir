@@ -5,8 +5,7 @@ pipeline {
         PYTHONPATH = "${WORKSPACE}"
         WIRE_JAR = "/var/lib/jenkins/tools/wiremock-standalone-3.13.2.jar"
         FLASK_APP = "app.api:api_application"
-        // Esta es la ruta que confirmamos con 'whereis'
-        JMETER_BIN = "/home/justin/apache-jmeter-5.6.3/bin/jmeter"
+        JMETER_BIN = "/var/lib/jenkins/tools/apache-jmeter-5.6.3/bin/jmeter"
     }
 
     stages {
@@ -66,19 +65,10 @@ pipeline {
                     
                     try {
                         sh "PYTHONPATH=. ./venv_jenkins/bin/pytest test/rest"
-                        
-                        // --- SOLUCIÓN AL ERROR 126 ---
-                        // Damos permiso de ejecución al binario de JMeter
-                        sh "chmod +x ${JMETER_BIN}"
-                        
-                        // Ejecución fija de JMeter
                         sh "${JMETER_BIN} -n -t test/jmeter/flask.jmx -l resultados_performance.jtl"
-                        
                     } finally {
                         sh "fuser -k 5000/tcp || true"
                         sh "fuser -k 9090/tcp || true"
-                        
-                        // Esto generará la tabla con la Línea 90
                         perfReport sourceDataFiles: 'resultados_performance.jtl'
                     }
                 }
